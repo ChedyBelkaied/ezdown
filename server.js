@@ -6,6 +6,7 @@ const { v4: uuidv4 } = require('uuid');
 const { exec, spawn } = require('child_process');
 const fs       = require('fs');
 const sanitize = require('sanitize-filename');
+const ffmpegPath = require('ffmpeg-static');
 
 const { registerRoutes }        = require('./routes/pages');
 const { router: authRouter }    = require('./routes/auth');
@@ -93,7 +94,7 @@ function buildArgs(url, format, quality, subtitles, outputPath) {
   if (subtitles && subtitles !== 'none') {
     args.push('--write-subs', '--embed-subs', '--sub-langs', subtitles);
   }
-  args.push('--ffmpeg-location', 'ffmpeg', '-o', outputPath, url);
+  args.push('--ffmpeg-location', ffmpegPath, '-o', outputPath, url);
   return args;
 }
 

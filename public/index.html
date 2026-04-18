@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SaveitAll — Universal Media Downloader</title>
+<link rel="stylesheet" href="/css/style.css">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">Saveit<span>All</span></div>
+  <ul class="nav-links">
+    <li><a href="#download">Download</a></li>
+    <li class="nav-dropdown">
+      <a href="#downloaders" class="nav-dropdown-toggle">Downloaders ▾</a>
+      <ul class="nav-dropdown-menu">
+        <li><a href="/tiktok-video-downloader">📱 TikTok Downloader</a></li>
+        <li><a href="/youtube-video-downloader">📺 YouTube Downloader</a></li>
+        <li><a href="/instagram-video-downloader">📸 Instagram Downloader</a></li>
+        <li><a href="/youtube-to-mp3">🎵 YouTube to MP3</a></li>
+      </ul>
+    </li>
+    <li><a href="#features">Features</a></li>
+    <li><a href="#history">History</a></li>
+  </ul>
+  <button class="nav-cta" onclick="document.getElementById('url-input').focus()">Get Started →</button>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="download">
+  <div class="hero-badge"><span class="pulse"></span>yt-dlp powered · 1000+ platforms supported</div>
+  <h1>Download<br><em>anything.</em></h1>
+  <p class="hero-sub">Videos, audio, playlists from YouTube, TikTok, Instagram, Twitter and thousands more — no limits, no sign-up.</p>
+
+  <!-- MAIN CARD -->
+  <div class="download-box" id="main-card">
+
+    <!-- STEP 1: URL INPUT -->
+    <div id="step-input">
+      <div class="url-row">
+        <input class="url-input" id="url-input" type="url" placeholder="Paste a URL (YouTube, TikTok, Instagram, Twitter...)" autocomplete="off" spellcheck="false" />
+        <button class="fetch-btn" id="fetch-btn">
+          <span class="spinner" id="fetch-spinner"></span>
+          <span id="fetch-label">Analyze</span>
+        </button>
+      </div>
+      <div class="quick-tips">
+        <span>Works with:</span>
+        <code>youtube.com</code>
+        <code>tiktok.com</code>
+        <code>instagram.com</code>
+        <code>twitter.com</code>
+        <code>twitch.tv</code>
+        <code>+ 1000 more</code>
+      </div>
+    </div>
+
+    <!-- STEP 2: VIDEO INFO + OPTIONS (hidden until analyzed) -->
+    <div id="step-options" class="hidden">
+      <div class="video-meta" id="video-meta">
+        <img id="meta-thumb" src="" alt="thumbnail" />
+        <div class="meta-info">
+          <div class="meta-title" id="meta-title">—</div>
+          <div class="meta-sub">
+            <span id="meta-platform" class="platform-tag">—</span>
+            <span id="meta-uploader">—</span>
+            <span id="meta-duration">—</span>
+          </div>
+        </div>
+        <button class="reset-btn" id="reset-btn" title="Change URL">✕</button>
+      </div>
+
+      <div class="options-row">
+        <div class="opt-group">
+          <label>Format</label>
+          <div class="select-wrap">
+            <select id="format-select">
+              <option value="mp4">🎬 MP4 Video</option>
+              <option value="webm">🎥 WebM Video</option>
+              <option value="mp3">🎵 MP3 Audio</option>
+            </select>
+          </div>
+        </div>
+        <div class="opt-group">
+          <label>Quality</label>
+          <div class="select-wrap">
+            <select id="quality-select">
+              <option value="best">⚡ Best available</option>
+              <option value="2160">4K — 2160p</option>
+              <option value="1080">Full HD — 1080p</option>
+              <option value="720">HD — 720p</option>
+              <option value="480">SD — 480p</option>
+              <option value="360">Low — 360p</option>
+            </select>
+          </div>
+        </div>
+        <div class="opt-group">
+          <label>Subtitles</label>
+          <div class="select-wrap">
+            <select id="subtitle-select">
+              <option value="none">None</option>
+              <option value="en">English</option>
+              <option value="fr">French</option>
+              <option value="ar">Arabic</option>
+              <option value="de">German</option>
+              <option value="es">Spanish</option>
+              <option value="pt">Portuguese</option>
+              <option value="it">Italian</option>
+              <option value="zh">Chinese</option>
+              <option value="ja">Japanese</option>
+              <option value="ko">Korean</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROGRESS -->
+      <div class="progress-section hidden" id="progress-section">
+        <div class="progress-label">
+          <span id="progress-status">Downloading...</span>
+          <span id="progress-pct">0%</span>
+        </div>
+        <div class="progress-track"><div class="progress-bar" id="progress-bar"></div></div>
+      </div>
+
+      <div class="action-row">
+        <button class="dl-btn" id="dl-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span id="dl-label">Download Now</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ERROR STATE -->
+    <div id="step-error" class="error-block hidden">
+      <div class="err-icon">⚠</div>
+      <div id="error-msg">Something went wrong.</div>
+      <button class="retry-btn" id="retry-btn">Try another URL</button>
+    </div>
+
+  </div>
+</section>
+
+<!-- SUPPORTED PLATFORMS -->
+<section class="platforms" id="supported">
+  <p class="section-label">Supported Platforms</p>
+  <div class="platform-grid">
+    <span class="pill">YouTube</span><span class="pill">TikTok</span><span class="pill">Instagram</span>
+    <span class="pill">Twitter / X</span><span class="pill">Facebook</span><span class="pill">Twitch</span>
+    <span class="pill">Dailymotion</span><span class="pill">Vimeo</span><span class="pill">Reddit</span>
+    <span class="pill">Pinterest</span><span class="pill">SoundCloud</span><span class="pill">Bilibili</span>
+    <span class="pill">Rumble</span><span class="pill">Odysee</span><span class="pill">Niconico</span>
+    <span class="pill accent-pill">+ 1000 more →</span>
+  </div>
+</section>
+
+<!-- POPULAR DOWNLOADERS — SEO internal links section -->
+<section class="downloaders-section" id="downloaders">
+  <div class="downloaders-inner">
+    <p class="section-label">Popular Downloaders</p>
+    <h2 class="downloaders-title">Download from any platform</h2>
+    <p class="downloaders-sub">Dedicated tools for the most popular platforms — optimized for each site.</p>
+    <div class="downloaders-grid">
+      <a href="/tiktok-video-downloader" class="dl-card">
+        <div class="dl-card-icon" style="background:rgba(255,45,85,.12);color:#ff2d55">📱</div>
+        <div class="dl-card-body">
+          <h3>TikTok Downloader</h3>
+          <p>Download TikTok videos without watermark in HD. Free, no app needed.</p>
+          <span class="dl-card-link">Download TikTok →</span>
+        </div>
+      </a>
+      <a href="/youtube-video-downloader" class="dl-card">
+        <div class="dl-card-icon" style="background:rgba(255,0,0,.1);color:#ff0000">📺</div>
+        <div class="dl-card-body">
+          <h3>YouTube Downloader</h3>
+          <p>Download YouTube videos in 4K, 1080p, 720p or audio-only MP3.</p>
+          <span class="dl-card-link">Download YouTube →</span>
+        </div>
+      </a>
+      <a href="/instagram-video-downloader" class="dl-card">
+        <div class="dl-card-icon" style="background:rgba(225,48,108,.1);color:#e1306c">📸</div>
+        <div class="dl-card-body">
+          <h3>Instagram Downloader</h3>
+          <p>Save Instagram Reels, videos and Stories in HD without logging in.</p>
+          <span class="dl-card-link">Download Instagram →</span>
+        </div>
+      </a>
+      <a href="/youtube-to-mp3" class="dl-card">
+        <div class="dl-card-icon" style="background:rgba(29,185,84,.1);color:#1db954">🎵</div>
+        <div class="dl-card-body">
+          <h3>YouTube to MP3</h3>
+          <p>Convert any YouTube video to high-quality MP3 audio in seconds.</p>
+          <span class="dl-card-link">Convert to MP3 →</span>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="features-header">
+    <p class="section-label">Features</p>
+    <h2>Everything you need.<br><span>Nothing you don't.</span></h2>
+  </div>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="ficon purple">⚡</div>
+      <h3>Universal Downloading</h3>
+      <p>Videos, audio, and full playlists from 1000+ sites via the yt-dlp engine — the most powerful media extractor available.</p>
+    </div>
+    <div class="feature-card">
+      <div class="ficon pink">🎛️</div>
+      <h3>Quality Control</h3>
+      <p>Choose your resolution: 4K, 1080p, 720p, or audio-only in MP3 at maximum bitrate. You decide the output.</p>
+    </div>
+    <div class="feature-card">
+      <div class="ficon green">🔀</div>
+      <h3>FFmpeg Merging</h3>
+      <p>Separate video and audio streams are automatically merged into a single, clean file using FFmpeg on the server.</p>
+    </div>
+    <div class="feature-card">
+      <div class="ficon amber">💬</div>
+      <h3>Subtitle Embedding</h3>
+      <p>Download and hard-embed subtitles in your language directly into the video file. 10+ languages supported.</p>
+    </div>
+    <div class="feature-card">
+      <div class="ficon purple">📋</div>
+      <h3>Playlist Support</h3>
+      <p>Paste a YouTube playlist URL and batch-download all videos at once — one click, done.</p>
+    </div>
+    <div class="feature-card">
+      <div class="ficon pink">🔒</div>
+      <h3>No Account Required</h3>
+      <p>No sign-up, no tracking, no ads. Just paste your URL and go. Files are auto-deleted after 10 minutes.</p>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how-section">
+  <div class="how-inner">
+    <p class="section-label">How It Works</p>
+    <h2>3 steps. That's it.</h2>
+    <div class="steps">
+      <div class="step"><div class="step-num">01</div><h3>Paste the URL</h3><p>Copy any video link from your browser and paste it in the input field.</p></div>
+      <div class="step-arrow">→</div>
+      <div class="step"><div class="step-num">02</div><h3>Choose options</h3><p>Select format, quality and subtitles if needed. One click to analyze.</p></div>
+      <div class="step-arrow">→</div>
+      <div class="step"><div class="step-num">03</div><h3>Download</h3><p>Hit Download. The server processes it and delivers the file to you directly.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- HISTORY -->
+<section class="history-section" id="history">
+  <div class="history-header">
+    <h2>Download History</h2>
+    <button class="clear-btn" id="clear-history-btn">Clear all</button>
+  </div>
+  <div class="history-list" id="history-list">
+    <div class="history-empty" id="history-empty">No downloads yet — grab something above!</div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">Saveit<span>All</span></div>
+  <div class="footer-links">
+    <span>Powered by</span>
+    <a href="https://github.com/yt-dlp/yt-dlp" target="_blank">yt-dlp</a>
+    <span>&</span>
+    <a href="https://ffmpeg.org" target="_blank">FFmpeg</a>
+  </div>
+  <div class="footer-copy">Open Source · No tracking · Files auto-deleted</div>
+</footer>
+
+<script src="/js/app.js"></script>
+</body>
+</html>

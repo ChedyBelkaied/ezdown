@@ -67,18 +67,24 @@ const jobs = {};
 
 // ── buildArgs — injecte --cookies si disponible ───────────────────────────
 function buildArgs(url, format, quality, subtitles, outputPath, playerClient) {
-  const args = [
-    '--no-playlist',
-    '--no-warnings',
-    '--newline',
-    '--force-overwrites',
-    '--extractor-args', `youtube:player_client=${playerClient || 'android'}`,
-  ];
+ const args = [
+  '--no-playlist',
+  '--no-warnings',
+  '--newline',
+  '--force-overwrites',
+
+  '--geo-bypass',
+  '--force-ipv4',
+
+  '--add-header', 'User-Agent:Mozilla/5.0'
+];
 
   // Cookies = contournement blocage datacenter YouTube
   if (hasCookies()) {
-    args.push('--cookies', COOKIES_FILE);
-  }
+  args.push('--cookies', COOKIES_FILE);
+} else {
+  console.log('⚠️ No cookies → high risk of block');
+}
 
   if (format === 'mp3' || format === 'audio') {
     args.push('-f', 'bestaudio/best', '-x', '--audio-format', 'mp3', '--audio-quality', '0');
@@ -151,7 +157,7 @@ async function handleInfo(req, res) {
 
     const client  = clients[i];
     const safeUrl = url.replace(/"/g, '').replace(/`/g, '');
-    const cmd     = `python -m yt_dlp --dump-json --no-playlist ${cookieFlag} --extractor-args "youtube:player_client=${client}" "${safeUrl}"`;
+    const cmd = `python -m yt_dlp --dump-json --no-playlist ${cookieFlag} --geo-bypass --force-ipv4 --extractor-args "youtube:player_client=${client}" "${safeUrl}"`;
 
     console.log(`[info] client=${client} | cookies=${hasCookies()}`);
 

@@ -18,9 +18,19 @@ const { requireApiKey }         = require('./middleware/auth');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 const DOWNLOAD_DIR = path.join(__dirname, 'downloads');
+const FFMPEG_DIR   = path.dirname(ffmpegPath);
 
-// ffmpeg-static retourne le chemin FICHIER — yt-dlp a besoin du DOSSIER
-const FFMPEG_DIR = path.dirname(ffmpegPath);
+// ── Cookies — Render Secret Files stocke dans /etc/secrets/cookies.txt ──────
+// En local on cherche cookies.txt à la racine du projet
+const COOKIES_FILE = fs.existsSync('/etc/secrets/cookies.txt')
+  ? '/etc/secrets/cookies.txt'
+  : path.join(__dirname, 'cookies.txt');
+
+function hasCookies() {
+  try {
+    return fs.existsSync(COOKIES_FILE) && fs.statSync(COOKIES_FILE).size > 50;
+  } catch { return false; }
+}
 
 function ytdlpAvailable() {
   return new Promise(resolve => {
@@ -55,14 +65,20 @@ app.use('/api/', rateLimit({
 
 const jobs = {};
 
+// ── buildArgs — injecte --cookies si disponible ───────────────────────────
 function buildArgs(url, format, quality, subtitles, outputPath, playerClient) {
   const args = [
     '--no-playlist',
     '--no-warnings',
     '--newline',
     '--force-overwrites',
-    '--extractor-args', `youtube:player_client=${playerClient || 'web'}`,
+    '--extractor-args', `youtube:player_client=${playerClient || 'android'}`,
   ];
+
+  // Cookies = contournement blocage datacenter YouTube
+  if (hasCookies()) {
+    args.push('--cookies', COOKIES_FILE);
+  }
 
   if (format === 'mp3' || format === 'audio') {
     args.push('-f', 'bestaudio/best', '-x', '--audio-format', 'mp3', '--audio-quality', '0');
@@ -107,7 +123,7 @@ app.use('/account', accountRouter);
 app.use('/billing', billingRouter);
 app.use('/pricing', pricingRouter);
 
-// ── /api/info — essaie plusieurs player_client YouTube en cascade ───────────
+// ── /api/info — cascade player_client + cookies ───────────────────────────
 app.get('/api/info', async (req, res) => {
   if (req.headers['x-api-key'] || req.query.api_key) {
     return requireApiKey(req, res, () => handleInfo(req, res));
@@ -122,48 +138,54 @@ async function handleInfo(req, res) {
   const ok = await ytdlpAvailable();
   if (!ok) return res.status(503).json({ error: 'yt-dlp not installed. Run: pip install yt-dlp' });
 
-  // "The page needs to be reloaded" = YouTube rejette le player_client.
-  // On essaie en cascade : web → android → ios → mweb → tv_embedded
-  const clients = ['web', 'android', 'ios', 'mweb', 'tv_embedded'];
+  const clients    = ['android', 'ios', 'web', 'mweb', 'tv_embedded'];
+  const cookieFlag = hasCookies() ? `--cookies "${COOKIES_FILE}"` : '';
 
   function tryClient(i) {
     if (i >= clients.length) {
-      return res.status(400).json({
-        error: 'YouTube is blocking all requests. Run: pip install -U yt-dlp to update.'
-      });
+      const hint = hasCookies()
+        ? 'Your cookies may have expired — re-export them from your browser and update the Secret File on Render.'
+        : 'Add your YouTube cookies as a Secret File named cookies.txt on Render.';
+      return res.status(400).json({ error: `YouTube is blocking datacenter requests. ${hint}` });
     }
 
     const client  = clients[i];
     const safeUrl = url.replace(/"/g, '').replace(/`/g, '');
-    const cmd = `python -m yt_dlp --dump-json --no-playlist --extractor-args "youtube:player_client=${client}" "${safeUrl}"`;
+    const cmd     = `python -m yt_dlp --dump-json --no-playlist ${cookieFlag} --extractor-args "youtube:player_client=${client}" "${safeUrl}"`;
 
-    console.log(`[info] Trying player_client=${client}...`);
+    console.log(`[info] client=${client} | cookies=${hasCookies()}`);
 
     exec(cmd, { timeout: 60000 }, (err, stdout, stderr) => {
       if (err) {
         const errText = (stderr || err.message || '').toLowerCase();
-        console.error(`[info] client=${client} failed:`, (stderr || '').trim().split('\n').pop());
+        console.error(`[info] client=${client} FAILED →`, (stderr || '').trim().split('\n').pop());
 
-        // Erreur de session/client → essayer le suivant
-        if (errText.includes('reload') || errText.includes('player_client') || errText.includes('sign in to confirm')) {
+        // Erreur de blocage → essayer le client suivant
+        if (
+          errText.includes('reload')             ||
+          errText.includes('player_client')      ||
+          errText.includes('sign in to confirm') ||
+          errText.includes('not a bot')          ||
+          errText.includes('confirm your age')
+        ) {
           return tryClient(i + 1);
         }
 
-        // Erreurs permanentes — inutile de réessayer
+        // Erreurs permanentes
         const msg =
-          errText.includes('private video')    ? 'This video is private.'                          :
-          errText.includes('sign in')           ? 'This video requires a YouTube login.'            :
-          errText.includes('not available')     ? 'This video is not available in your region.'     :
-          errText.includes('video unavailable') ? 'Video unavailable.'                              :
-          'Could not fetch video info. Try updating yt-dlp: pip install -U yt-dlp';
+          errText.includes('private video')      ? 'This video is private.'                   :
+          errText.includes('sign in')             ? 'This video requires a YouTube login.'     :
+          errText.includes('not available')       ? 'Video not available in your region.'      :
+          errText.includes('video unavailable')   ? 'Video unavailable.'                       :
+          'Could not fetch video info. Check the URL.';
 
         return res.status(400).json({ error: msg });
       }
 
       try {
         const firstLine = stdout.trim().split('\n')[0];
-        const data = JSON.parse(firstLine);
-        console.log(`[info] OK with client=${client} — "${data.title}"`);
+        const data      = JSON.parse(firstLine);
+        console.log(`[info] ✅ client=${client} — "${data.title}"`);
         res.json({
           title:      data.title,
           duration:   data.duration_string,
@@ -187,7 +209,7 @@ async function handleInfo(req, res) {
   tryClient(0);
 }
 
-// ── /api/download ───────────────────────────────────────────────────────────
+// ── /api/download ─────────────────────────────────────────────────────────
 app.post('/api/download', async (req, res) => {
   if (req.headers['x-api-key'] || req.query.api_key) {
     return requireApiKey(req, res, () => handleDownload(req, res));
@@ -196,7 +218,7 @@ app.post('/api/download', async (req, res) => {
 });
 
 async function handleDownload(req, res) {
-  const { url, format = 'mp4', quality = 'best', subtitles = 'none', playerClient = 'android' } = req.body;
+  const { url, format = 'mp4', quality = 'best', subtitles = 'none' } = req.body;
   if (!url) return res.status(400).json({ error: 'URL is required' });
 
   const ok = await ytdlpAvailable();
@@ -208,9 +230,9 @@ async function handleDownload(req, res) {
   jobs[jobId] = { status: 'queued', progress: 0, filename: null, error: null, url };
   res.json({ jobId });
 
-  // Pour le download, on utilise android par défaut (plus stable que web)
-  const args = buildArgs(url, format, quality, subtitles, outputTemplate, playerClient);
-  console.log('\n[download] python -m yt_dlp', args.slice(0, 6).join(' '), '...');
+  const args = buildArgs(url, format, quality, subtitles, outputTemplate, 'android');
+  console.log('\n[download] Starting:', url.slice(0, 70));
+  console.log('[download] cookies:', hasCookies() ? COOKIES_FILE : 'none');
 
   const proc = spawn('python', ['-m', 'yt_dlp', ...args], { windowsHide: true });
   jobs[jobId].status = 'downloading';
@@ -279,6 +301,7 @@ app.listen(PORT, () => {
   console.log(`\n🚀 EZDown → http://localhost:${PORT}`);
   console.log(`📁 Downloads: ${DOWNLOAD_DIR}`);
   console.log(`🔧 FFmpeg:    ${FFMPEG_DIR}`);
+  console.log(`🍪 Cookies:   ${hasCookies() ? COOKIES_FILE + ' ✅' : 'NOT FOUND ⚠️'}`);
   if (process.env.RENDER_EXTERNAL_URL) {
     console.log(`🌍 Live URL:  ${process.env.RENDER_EXTERNAL_URL}`);
   }
